@@ -4,75 +4,72 @@ import { Transaction, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/lib/types'
 import { deleteTransaction } from '@/lib/storage';
 import { Trash2 } from 'lucide-react';
 
-interface Props {
-  transactions: Transaction[];
-  onChanged: () => void;
-  limit?: number;
+interface Props { transactions: Transaction[]; onChanged: () => void; limit?: number; }
+
+function emoji(category: string) {
+  return [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES].find((c) => c.name === category)?.emoji ?? '📦';
 }
 
-function getCategoryEmoji(category: string): string {
-  const all = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES];
-  return all.find((c) => c.name === category)?.emoji ?? '📦';
-}
-
-function groupByDate(transactions: Transaction[]) {
-  const groups: Record<string, Transaction[]> = {};
-  transactions.forEach((t) => {
-    const d = new Date(t.date).toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
-    if (!groups[d]) groups[d] = [];
-    groups[d].push(t);
+function groupByDate(txs: Transaction[]) {
+  const map: Record<string, Transaction[]> = {};
+  [...txs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).forEach((t) => {
+    const key = new Date(t.date).toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' });
+    if (!map[key]) map[key] = [];
+    map[key].push(t);
   });
-  return Object.entries(groups);
+  return Object.entries(map);
 }
+
+const MEMBER_COLOR: Record<string, string> = {
+  כפיר: '#0071e3',
+  אדר: '#bf5af2',
+  משותף: '#6e6e73',
+};
 
 export default function TransactionList({ transactions, onChanged, limit }: Props) {
-  function handleDelete(id: string) {
-    deleteTransaction(id);
-    onChanged();
-  }
-
-  const displayed = limit ? transactions.slice(0, limit) : transactions;
-
-  if (transactions.length === 0) {
-    return (
-      <div className="text-center py-16">
-        <div className="text-6xl mb-4">💸</div>
-        <p className="text-gray-400 font-medium">אין עסקאות עדיין</p>
-        <p className="text-gray-300 text-sm mt-1">לחץ על &quot;הוסף עסקה&quot; להתחלה</p>
-      </div>
-    );
-  }
-
+  const displayed = limit ? [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, limit) : transactions;
   const grouped = groupByDate(displayed);
 
+  if (!transactions.length) return (
+    <div className="flex flex-col items-center justify-center py-16 gap-3">
+      <div className="w-14 h-14 rounded-full flex items-center justify-center text-2xl" style={{ background: 'var(--bg)' }}>💸</div>
+      <p className="font-medium" style={{ color: 'var(--text-secondary)' }}>אין עסקאות עדיין</p>
+      <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>לחצו + להוספה</p>
+    </div>
+  );
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       {grouped.map(([date, txs]) => (
         <div key={date}>
-          <p className="text-xs font-semibold text-gray-400 mb-2 px-1">{date}</p>
-          <div className="flex flex-col gap-2">
-            {txs.map((tx) => (
-              <div key={tx.id} className="bg-white rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 ${tx.type === 'income' ? 'bg-green-50' : 'bg-red-50'}`}>
-                  {getCategoryEmoji(tx.category)}
+          <p className="text-xs font-semibold mb-2 px-1" style={{ color: 'var(--text-tertiary)' }}>{date}</p>
+          <div className="surface overflow-hidden">
+            {txs.map((tx, i) => (
+              <div key={tx.id}
+                className="flex items-center gap-3 px-4 py-3.5 group transition-colors hover:bg-gray-50"
+                style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                  style={{ background: tx.type === 'income' ? 'var(--income-light)' : 'var(--expense-light)' }}>
+                  {emoji(tx.category)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-gray-800 truncate">
+                  <p className="font-medium text-sm truncate" style={{ color: 'var(--text-primary)' }}>
                     {tx.description || tx.category}
                   </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {tx.category}
-                    {tx.member && tx.member !== 'כולם' && ` · ${tx.member}`}
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{tx.category}</span>
+                    <span className="w-1 h-1 rounded-full inline-block" style={{ background: 'var(--text-tertiary)' }} />
+                    <span className="text-xs font-medium" style={{ color: MEMBER_COLOR[tx.member] ?? '#6e6e73' }}>{tx.member}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className={`font-bold text-sm ${tx.type === 'income' ? 'text-green-600' : 'text-red-500'}`}>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm tabular-nums"
+                    style={{ color: tx.type === 'income' ? 'var(--income)' : 'var(--expense)' }}>
                     {tx.type === 'income' ? '+' : '-'}{tx.amount.toLocaleString('he-IL')} ₪
                   </span>
-                  <button
-                    onClick={() => handleDelete(tx.id)}
-                    className="w-7 h-7 rounded-full text-gray-300 hover:bg-red-50 hover:text-red-400 transition-colors flex items-center justify-center"
-                  >
+                  <button onClick={() => { deleteTransaction(tx.id); onChanged(); }}
+                    className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+                    style={{ color: 'var(--text-tertiary)' }}>
                     <Trash2 size={14} />
                   </button>
                 </div>

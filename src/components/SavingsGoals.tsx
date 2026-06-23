@@ -5,12 +5,9 @@ import { SavingsGoal } from '@/lib/types';
 import { saveGoals } from '@/lib/storage';
 import { Plus, Trash2 } from 'lucide-react';
 
-const GOAL_EMOJIS = ['🏖️', '🚗', '🏠', '📱', '✈️', '🎓', '💍', '🏋️', '🎮', '💰'];
+const EMOJIS = ['🏖️', '🚗', '🏠', '📱', '✈️', '🎓', '💍', '👶', '🎮', '💰', '🛋️', '🐾'];
 
-interface Props {
-  goals: SavingsGoal[];
-  onChanged: () => void;
-}
+interface Props { goals: SavingsGoal[]; onChanged: () => void; }
 
 export default function SavingsGoals({ goals, onChanged }: Props) {
   const [adding, setAdding] = useState(false);
@@ -22,12 +19,13 @@ export default function SavingsGoals({ goals, onChanged }: Props) {
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
+    if (!name || !target) return;
     saveGoals([...goals, { id: Date.now().toString(), name, target: parseFloat(target), current: 0, emoji }]);
     setName(''); setTarget(''); setEmoji('🏖️'); setAdding(false);
     onChanged();
   }
 
-  function handleContribute(id: string) {
+  function contribute(id: string) {
     const amt = parseFloat(addAmount);
     if (!amt) return;
     saveGoals(goals.map((g) => g.id === id ? { ...g, current: Math.min(g.current + amt, g.target) } : g));
@@ -35,109 +33,93 @@ export default function SavingsGoals({ goals, onChanged }: Props) {
     onChanged();
   }
 
-  function handleDelete(id: string) {
-    saveGoals(goals.filter((g) => g.id !== id));
-    onChanged();
-  }
-
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+    <div className="surface p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="font-bold text-gray-800 text-sm">🎯 יעדי חיסכון</h3>
-          <p className="text-xs text-gray-400 mt-0.5">עקוב אחר המטרות שלך</p>
+          <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>יעדי חיסכון</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{goals.length} יעדים פעילים</p>
         </div>
-        <button
-          onClick={() => setAdding(true)}
-          className="flex items-center gap-1 bg-blue-600 text-white rounded-xl px-3 py-1.5 text-xs font-semibold hover:bg-blue-700 transition-colors"
-        >
-          <Plus size={13} /> יעד חדש
+        <button onClick={() => setAdding(true)}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+          style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>
+          <Plus size={13} /> הוסף
         </button>
       </div>
 
       {adding && (
-        <form onSubmit={handleAdd} className="bg-blue-50 rounded-2xl p-4 mb-4 flex flex-col gap-3">
+        <form onSubmit={handleAdd} className="rounded-xl p-4 mb-4 flex flex-col gap-3" style={{ background: 'var(--bg)' }}>
           <div className="flex gap-2 flex-wrap">
-            {GOAL_EMOJIS.map((e) => (
-              <button
-                key={e}
-                type="button"
-                onClick={() => setEmoji(e)}
-                className={`w-9 h-9 rounded-xl text-xl flex items-center justify-center transition-all ${emoji === e ? 'bg-blue-600 shadow-md scale-110' : 'bg-white hover:bg-blue-100'}`}
-              >
+            {EMOJIS.map((e) => (
+              <button key={e} type="button" onClick={() => setEmoji(e)}
+                className="w-9 h-9 rounded-xl text-xl flex items-center justify-center transition-all"
+                style={emoji === e ? { background: 'var(--accent)', boxShadow: '0 2px 8px rgba(0,113,227,0.3)' } : { background: '#fff', border: '1px solid var(--border)' }}>
                 {e}
               </button>
             ))}
           </div>
-          <input required placeholder="שם היעד (למשל: חופשה)" value={name} onChange={(e) => setName(e.target.value)}
-            className="border border-blue-200 rounded-xl px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white" />
+          <input required placeholder="שם היעד" value={name} onChange={(e) => setName(e.target.value)}
+            className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none" style={{ borderColor: 'var(--border)' }} />
           <input required type="number" placeholder="סכום יעד (₪)" value={target} onChange={(e) => setTarget(e.target.value)}
-            className="border border-blue-200 rounded-xl px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white" />
+            className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none" style={{ borderColor: 'var(--border)' }} />
           <div className="flex gap-2">
-            <button type="submit" className="flex-1 bg-blue-600 text-white rounded-xl py-2 text-sm font-semibold">שמור יעד</button>
-            <button type="button" onClick={() => setAdding(false)} className="px-4 text-gray-500 text-sm">ביטול</button>
+            <button type="submit" className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white" style={{ background: 'var(--accent)' }}>שמור</button>
+            <button type="button" onClick={() => setAdding(false)} className="px-4 text-sm" style={{ color: 'var(--text-secondary)' }}>ביטול</button>
           </div>
         </form>
       )}
 
       {goals.length === 0 && !adding && (
         <div className="text-center py-8">
-          <div className="text-5xl mb-3">🎯</div>
-          <p className="text-gray-400 text-sm">הוסף יעד חיסכון ראשון</p>
+          <p className="text-3xl mb-2">🎯</p>
+          <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>הגדירו יעד חיסכון ראשון</p>
         </div>
       )}
 
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-4">
         {goals.map((g) => {
           const pct = Math.min((g.current / g.target) * 100, 100);
-          const remaining = g.target - g.current;
           return (
             <div key={g.id}>
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center text-xl flex-shrink-0">
-                  {g.emoji}
+                <span className="text-2xl">{g.emoji}</span>
+                <div className="flex-1">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{g.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--accent)' }}>{pct.toFixed(0)}%</span>
+                      <button onClick={() => { saveGoals(goals.filter((x) => x.id !== g.id)); onChanged(); }}
+                        className="opacity-40 hover:opacity-100 transition-opacity" style={{ color: 'var(--expense)' }}>
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex justify-between text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                    <span>{g.current.toLocaleString('he-IL')} ₪</span>
+                    <span>{g.target.toLocaleString('he-IL')} ₪</span>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-gray-800">{g.name}</span>
-                    <button onClick={() => handleDelete(g.id)} className="text-gray-300 hover:text-red-400 transition-colors">
-                      <Trash2 size={13} />
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+                <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: pct >= 100 ? 'var(--income)' : 'var(--accent)' }} />
+              </div>
+              {pct >= 100
+                ? <p className="text-xs mt-1 font-medium" style={{ color: 'var(--income)' }}>🎉 הושג!</p>
+                : editingId === g.id
+                  ? (
+                    <div className="flex gap-2 mt-2">
+                      <input type="number" placeholder="סכום (₪)" value={addAmount} onChange={(e) => setAddAmount(e.target.value)}
+                        className="flex-1 border rounded-xl px-3 py-2 text-sm focus:outline-none" style={{ borderColor: 'var(--border)' }} />
+                      <button onClick={() => contribute(g.id)} className="px-3 py-2 rounded-xl text-sm font-medium text-white" style={{ background: 'var(--accent)' }}>הוסף</button>
+                      <button onClick={() => setEditingId(null)} className="text-sm px-1" style={{ color: 'var(--text-tertiary)' }}>✕</button>
+                    </div>
+                  )
+                  : (
+                    <button onClick={() => setEditingId(g.id)} className="text-xs mt-1 font-medium" style={{ color: 'var(--accent)' }}>
+                      + הוסף חיסכון
                     </button>
-                  </div>
-                  <div className="flex items-center justify-between mt-0.5">
-                    <span className="text-xs text-gray-500">{g.current.toLocaleString('he-IL')} / {g.target.toLocaleString('he-IL')} ₪</span>
-                    <span className="text-xs font-bold text-blue-600">{pct.toFixed(0)}%</span>
-                  </div>
-                </div>
-              </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #6366f1, #4facfe)' }}
-                />
-              </div>
-              {pct < 100 && (
-                <p className="text-xs text-gray-400 mt-1">נותר {remaining.toLocaleString('he-IL')} ₪</p>
-              )}
-              {pct >= 100 && (
-                <p className="text-xs text-green-600 font-semibold mt-1">🎉 היעד הושג!</p>
-              )}
-
-              {editingId === g.id ? (
-                <div className="flex gap-2 mt-2">
-                  <input type="number" placeholder="סכום להוסיף (₪)" value={addAmount} onChange={(e) => setAddAmount(e.target.value)}
-                    className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-300" />
-                  <button onClick={() => handleContribute(g.id)} className="bg-blue-600 text-white rounded-xl px-3 py-1.5 text-sm font-medium">הוסף</button>
-                  <button onClick={() => setEditingId(null)} className="text-gray-400 text-sm px-1">✕</button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setEditingId(g.id)}
-                  className="text-xs text-blue-500 hover:text-blue-700 mt-1.5 font-medium"
-                >
-                  + הוסף חיסכון
-                </button>
-              )}
+                  )
+              }
             </div>
           );
         })}
