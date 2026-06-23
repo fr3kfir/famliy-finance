@@ -14,71 +14,70 @@ export default function AddTransactionModal({ onClose, onAdded }: Props) {
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [member, setMember] = useState<'כפיר' | 'אדר' | 'משותף'>('משותף');
+  const cats = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
 
-  const categories = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
-
-  function handleSubmit(e: React.FormEvent) {
+  function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!amount || !category) return;
     addTransaction({ id: Date.now().toString(), type, amount: parseFloat(amount), category, description, date, member });
-    onAdded();
-    onClose();
+    onAdded(); onClose();
   }
 
+  const accentColor = type === 'expense' ? 'var(--red)' : 'var(--green)';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}>
-      <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
+    <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(4px)' }}>
+      <div style={{ background: 'var(--white)', width: '100%', maxWidth: 480, borderRadius: '28px 28px 0 0', maxHeight: '92svh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+        {/* Handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4 }}>
+          <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--border)' }} />
+        </div>
+
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 flex-shrink-0">
-          <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>עסקה חדשה</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'var(--bg)', color: 'var(--text-secondary)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 20px 16px' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-1)' }}>פעולה חדשה</h2>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-2)' }}>
             <X size={16} />
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1 px-6 pb-6 flex flex-col gap-5">
-          {/* Type */}
-          <div className="flex rounded-xl overflow-hidden p-1" style={{ background: 'var(--bg)' }}>
-            <button type="button" onClick={() => { setType('expense'); setCategory(''); }}
-              className="flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all"
-              style={type === 'expense' ? { background: '#fff', color: 'var(--expense)', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' } : { color: 'var(--text-secondary)' }}>
-              הוצאה
-            </button>
-            <button type="button" onClick={() => { setType('income'); setCategory(''); }}
-              className="flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all"
-              style={type === 'income' ? { background: '#fff', color: 'var(--income)', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' } : { color: 'var(--text-secondary)' }}>
-              הכנסה
-            </button>
+        <form onSubmit={submit} style={{ overflowY: 'auto', flex: 1, padding: '0 20px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* Type toggle */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, background: 'var(--bg)', borderRadius: 14, padding: 4 }}>
+            {(['expense', 'income'] as const).map((t) => (
+              <button key={t} type="button" onClick={() => { setType(t); setCategory(''); }}
+                style={{ padding: '10px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, transition: 'all 0.15s',
+                  background: type === t ? 'var(--white)' : 'transparent',
+                  color: type === t ? (t === 'expense' ? 'var(--red)' : 'var(--green)') : 'var(--text-3)',
+                  boxShadow: type === t ? 'var(--shadow)' : 'none'
+                }}>
+                {t === 'expense' ? 'הוצאה' : 'הכנסה'}
+              </button>
+            ))}
           </div>
 
           {/* Amount */}
-          <div>
-            <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-secondary)' }}>סכום</label>
-            <div className="relative">
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 font-semibold text-lg" style={{ color: 'var(--text-tertiary)' }}>₪</span>
-              <input
-                type="number" placeholder="0" required min="0" step="0.01" value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                autoFocus
-                className="w-full border rounded-xl pr-10 pl-4 py-3 text-2xl font-bold focus:outline-none"
-                style={{ borderColor: 'var(--border)', color: type === 'expense' ? 'var(--expense)' : 'var(--income)' }}
-              />
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-3)', marginBottom: 8 }}>סכום</p>
+            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+              <span style={{ fontSize: 36, fontWeight: 300, color: 'var(--text-3)', marginLeft: 4 }}>₪</span>
+              <input type="number" placeholder="0" required min="0" step="0.01" value={amount}
+                onChange={(e) => setAmount(e.target.value)} autoFocus
+                style={{ fontSize: 48, fontWeight: 800, width: 200, border: 'none', background: 'transparent', textAlign: 'center', color: accentColor, outline: 'none' }} />
             </div>
           </div>
 
           {/* Category */}
           <div>
-            <label className="text-xs font-medium mb-2 block" style={{ color: 'var(--text-secondary)' }}>קטגוריה</label>
-            <div className="grid grid-cols-4 gap-2">
-              {categories.map((c) => (
+            <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-2)', marginBottom: 10 }}>קטגוריה</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+              {cats.map((c) => (
                 <button key={c.name} type="button" onClick={() => setCategory(c.name)}
-                  className="flex flex-col items-center gap-1 p-2.5 rounded-xl border text-center transition-all"
-                  style={category === c.name
-                    ? { borderColor: 'var(--accent)', background: 'var(--accent-light)', color: 'var(--accent)' }
-                    : { borderColor: 'var(--border)', background: '#fff', color: 'var(--text-secondary)' }
-                  }>
-                  <span className="text-xl">{c.emoji}</span>
-                  <span className="text-[10px] font-medium leading-tight">{c.name}</span>
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '10px 4px', borderRadius: 12, border: `1.5px solid ${category === c.name ? accentColor : 'var(--border)'}`, background: category === c.name ? (type === 'expense' ? 'var(--red-bg)' : 'var(--green-bg)') : 'var(--white)', cursor: 'pointer', transition: 'all 0.15s' }}>
+                  <span style={{ fontSize: 22 }}>{c.emoji}</span>
+                  <span style={{ fontSize: 10, fontWeight: 500, color: category === c.name ? accentColor : 'var(--text-2)', lineHeight: 1.2, textAlign: 'center' }}>{c.name}</span>
                 </button>
               ))}
             </div>
@@ -86,15 +85,11 @@ export default function AddTransactionModal({ onClose, onAdded }: Props) {
 
           {/* Member */}
           <div>
-            <label className="text-xs font-medium mb-2 block" style={{ color: 'var(--text-secondary)' }}>של מי?</label>
-            <div className="flex gap-2">
+            <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-2)', marginBottom: 10 }}>של מי?</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
               {MEMBERS.map((m) => (
                 <button key={m} type="button" onClick={() => setMember(m as typeof member)}
-                  className="flex-1 py-2.5 rounded-xl border text-sm font-medium transition-all"
-                  style={member === m
-                    ? { borderColor: 'var(--accent)', background: 'var(--accent-light)', color: 'var(--accent)' }
-                    : { borderColor: 'var(--border)', background: '#fff', color: 'var(--text-secondary)' }
-                  }>
+                  style={{ padding: '10px', borderRadius: 12, border: `1.5px solid ${member === m ? 'var(--accent)' : 'var(--border)'}`, background: member === m ? 'var(--accent-bg)' : 'var(--white)', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: member === m ? 'var(--accent)' : 'var(--text-2)', transition: 'all 0.15s' }}>
                   {m}
                 </button>
               ))}
@@ -103,26 +98,24 @@ export default function AddTransactionModal({ onClose, onAdded }: Props) {
 
           {/* Description */}
           <div>
-            <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-secondary)' }}>תיאור (אופציונלי)</label>
-            <input type="text" placeholder="למה שולם?" value={description} onChange={(e) => setDescription(e.target.value)}
-              className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none"
-              style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+            <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-2)', marginBottom: 8 }}>תיאור</p>
+            <input type="text" placeholder="תיאור קצר (אופציונלי)" value={description} onChange={(e) => setDescription(e.target.value)}
+              style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'var(--text-1)', background: 'var(--white)', outline: 'none' }} />
           </div>
 
           {/* Date */}
           <div>
-            <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-secondary)' }}>תאריך</label>
+            <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-2)', marginBottom: 8 }}>תאריך</p>
             <input type="date" required value={date} onChange={(e) => setDate(e.target.value)}
-              className="w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none"
-              style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+              style={{ width: '100%', border: '1.5px solid var(--border)', borderRadius: 12, padding: '12px 14px', fontSize: 14, color: 'var(--text-1)', background: 'var(--white)', outline: 'none' }} />
           </div>
 
-          <button type="button" onClick={handleSubmit}
-            className="w-full py-3.5 rounded-xl font-semibold text-white mt-1 transition-opacity hover:opacity-90"
-            style={{ background: type === 'expense' ? 'var(--expense)' : 'var(--income)' }}>
+          {/* Submit */}
+          <button type="submit"
+            style={{ width: '100%', padding: '16px', borderRadius: 14, border: 'none', background: accentColor, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', marginTop: 4 }}>
             הוסף {type === 'expense' ? 'הוצאה' : 'הכנסה'}
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );

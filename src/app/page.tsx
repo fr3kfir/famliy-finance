@@ -3,167 +3,291 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Transaction, SavingsGoal } from '@/lib/types';
 import { getTransactions, getGoals } from '@/lib/storage';
-import { getMonthlyStats, getMemberSplit } from '@/lib/analytics';
-import StatCard from '@/components/StatCard';
+import { getMonthlyStats, getMemberSplit, getCategoryBreakdown, getLast6MonthsData } from '@/lib/analytics';
 import AddTransactionModal from '@/components/AddTransactionModal';
 import TransactionList from '@/components/TransactionList';
-import Charts from '@/components/Charts';
 import SavingsGoals from '@/components/SavingsGoals';
-import TipsPanel from '@/components/TipsPanel';
-import { LayoutDashboard, List, BarChart2, Lightbulb, Plus } from 'lucide-react';
+import { Plus, Home, List, PieChart, Target } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RePie, Pie, Cell } from 'recharts';
 
-type Tab = 'home' | 'transactions' | 'charts' | 'tips';
+type Tab = 'home' | 'transactions' | 'stats' | 'goals';
 
-export default function Home() {
+const PIE_COLORS = ['#4F46E5', '#7C3AED', '#059669', '#D97706', '#DC2626', '#0891B2', '#BE185D', '#65A30D'];
+
+export default function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
-  const [showModal, setShowModal] = useState(false);
   const [tab, setTab] = useState<Tab>('home');
+  const [showAdd, setShowAdd] = useState(false);
 
   const now = new Date();
   const reload = useCallback(() => { setTransactions(getTransactions()); setGoals(getGoals()); }, []);
   useEffect(() => { reload(); }, [reload]);
 
-  const { income, expenses, savings } = getMonthlyStats(transactions, now.getFullYear(), now.getMonth());
-  const split = getMemberSplit(transactions.filter((t) => {
-    const d = new Date(t.date);
-    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-  }));
-  const currentMonthTxs = transactions.filter((t) => {
+  const thisMonth = transactions.filter(t => {
     const d = new Date(t.date);
     return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
   });
-  const savingPct = income > 0 ? Math.round((savings / income) * 100) : 0;
-  const spendingPct = income > 0 ? Math.min(Math.round((expenses / income) * 100), 100) : 0;
-  const barColor = spendingPct > 90 ? 'var(--expense)' : spendingPct > 70 ? 'var(--warning)' : 'var(--income)';
 
-  const monthLabel = now.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
+  const { income, expenses, savings } = getMonthlyStats(transactions, now.getFullYear(), now.getMonth());
+  const split = getMemberSplit(thisMonth);
+  const pieData = getCategoryBreakdown(thisMonth);
+  const chartData = getLast6MonthsData(transactions);
+  const savePct = income > 0 ? Math.round((savings / income) * 100) : 0;
+  const spendPct = income > 0 ? Math.min(Math.round((expenses / income) * 100), 100) : 0;
+  const barColor = spendPct > 90 ? 'var(--red)' : spendPct > 70 ? 'var(--yellow)' : 'var(--green)';
+
+  const monthName = now.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
+
+  const TABS = [
+    { id: 'home' as Tab, icon: Home, label: 'בית' },
+    { id: 'transactions' as Tab, icon: List, label: 'עסקאות' },
+    { id: 'stats' as Tab, icon: PieChart, label: 'סטטיסטיקה' },
+    { id: 'goals' as Tab, icon: Target, label: 'יעדים' },
+  ];
 
   return (
-    <div className="min-h-screen pb-24" style={{ background: 'var(--bg)' }}>
-      {/* Top bar */}
-      <div className="sticky top-0 z-30 px-4 pt-5 pb-4 bg-transparent">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>משק הבית</h1>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{monthLabel}</p>
-          </div>
-          <button onClick={() => setShowModal(true)}
-            className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-md transition-transform hover:scale-105 active:scale-95"
-            style={{ background: 'var(--accent)' }}>
-            <Plus size={20} strokeWidth={2.5} />
-          </button>
-        </div>
-      </div>
+    <div style={{ background: 'var(--bg)', minHeight: '100svh', paddingBottom: 88 }}>
 
-      <div className="max-w-lg mx-auto px-4 flex flex-col gap-4">
-        {tab === 'home' && (
-          <>
-            {/* Stat cards */}
-            <div className="grid grid-cols-3 gap-3">
-              <StatCard label="הכנסות" amount={income} color="var(--income)" bg="var(--income-light)" />
-              <StatCard label="הוצאות" amount={expenses} color="var(--expense)" bg="var(--expense-light)" />
-              <StatCard label="חיסכון" amount={savings} color="var(--accent)" bg="var(--accent-light)" />
-            </div>
-
-            {/* Spending bar */}
-            <div className="surface p-4">
-              <div className="flex justify-between items-baseline mb-3">
-                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>ניצול תקציב</p>
-                <p className="text-sm font-bold tabular-nums" style={{ color: barColor }}>{spendingPct}%</p>
-              </div>
-              <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
-                <div className="h-full rounded-full transition-all" style={{ width: `${spendingPct}%`, background: barColor }} />
-              </div>
-              <div className="flex justify-between mt-2">
-                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                  {spendingPct > 90 ? '⚠️ מעל התקציב' : spendingPct > 70 ? 'בקצה הגבול' : `חוסכים ${savingPct}% מההכנסה`}
-                </p>
-                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{currentMonthTxs.length} פעולות החודש</p>
-              </div>
-            </div>
-
-            {/* Member split */}
-            <div className="surface p-4">
-              <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>הוצאות לפי בן זוג</p>
-              <div className="grid grid-cols-3 gap-3">
-                {(['כפיר', 'אדר', 'משותף'] as const).map((m) => (
-                  <div key={m} className="rounded-xl p-3 flex flex-col gap-1" style={{ background: 'var(--bg)' }}>
-                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{m}</span>
-                    <span className="text-base font-bold tabular-nums" style={{ color: m === 'כפיר' ? '#0071e3' : m === 'אדר' ? '#bf5af2' : 'var(--text-secondary)' }}>
-                      {(split[m] ?? 0).toLocaleString('he-IL')} ₪
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Recent */}
+      {/* ── HEADER ── */}
+      <header style={{ background: 'var(--white)', borderBottom: '1px solid var(--border)', padding: '20px 20px 0' }}>
+        <div style={{ maxWidth: 480, margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div>
-              <div className="flex justify-between items-center mb-3">
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>עסקאות אחרונות</p>
-                <button onClick={() => setTab('transactions')} className="text-xs font-medium" style={{ color: 'var(--accent)' }}>
-                  הכל ›
-                </button>
+              <p style={{ color: 'var(--text-3)', fontSize: 12, fontWeight: 500 }}>{monthName}</p>
+              <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-1)', marginTop: 2 }}>משק הבית</h1>
+            </div>
+            <button
+              onClick={() => setShowAdd(true)}
+              style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(79,70,229,0.4)' }}
+            >
+              <Plus size={20} strokeWidth={2.5} />
+            </button>
+          </div>
+
+          {/* Tab bar */}
+          <div style={{ display: 'flex', gap: 4 }}>
+            {TABS.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                style={{ flex: 1, padding: '8px 0', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: tab === t.id ? 'var(--accent)' : 'var(--text-3)', borderBottom: tab === t.id ? '2px solid var(--accent)' : '2px solid transparent', transition: 'all 0.15s' }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </header>
+
+      <main style={{ maxWidth: 480, margin: '0 auto', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+        {/* ── HOME ── */}
+        {tab === 'home' && <>
+
+          {/* Balance hero */}
+          <div className="card" style={{ padding: 24 }}>
+            <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-3)', marginBottom: 4 }}>יתרה נטו החודש</p>
+            <p style={{ fontSize: 40, fontWeight: 800, color: savings >= 0 ? 'var(--text-1)' : 'var(--red)', letterSpacing: -1, lineHeight: 1 }}>
+              {savings.toLocaleString('he-IL')} <span style={{ fontSize: 20, fontWeight: 500 }}>₪</span>
+            </p>
+            <div style={{ display: 'flex', gap: 24, marginTop: 20 }}>
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-3)' }}>הכנסות</p>
+                <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--green)' }}>+{income.toLocaleString('he-IL')} ₪</p>
               </div>
-              <TransactionList transactions={transactions} onChanged={reload} limit={8} />
+              <div style={{ width: 1, background: 'var(--border)' }} />
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-3)' }}>הוצאות</p>
+                <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--red)' }}>-{expenses.toLocaleString('he-IL')} ₪</p>
+              </div>
+              {income > 0 && <>
+                <div style={{ width: 1, background: 'var(--border)' }} />
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-3)' }}>חיסכון</p>
+                  <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)' }}>{savePct}%</p>
+                </div>
+              </>}
             </div>
+          </div>
 
-            <SavingsGoals goals={goals} onChanged={reload} />
-          </>
-        )}
-
-        {tab === 'transactions' && (
-          <>
-            <div className="flex items-center justify-between">
-              <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>כל העסקאות</p>
-              <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: 'var(--bg)', color: 'var(--text-secondary)' }}>
-                {transactions.length}
-              </span>
+          {/* Spending bar */}
+          {income > 0 && (
+            <div className="card" style={{ padding: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, alignItems: 'baseline' }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>ניצול הכנסה</p>
+                <p style={{ fontSize: 13, fontWeight: 700, color: barColor }}>{spendPct}%</p>
+              </div>
+              <div style={{ height: 8, background: 'var(--border)', borderRadius: 99, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${spendPct}%`, background: barColor, borderRadius: 99, transition: 'width 0.5s' }} />
+              </div>
+              <p style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>
+                {spendPct > 90 ? '⚠️ מעל 90% מההכנסה הוצאה' : spendPct > 70 ? 'קרוב לגבול — שמרו על עצמכם' : `נשאר לחיסכון: ${savings.toLocaleString('he-IL')} ₪`}
+              </p>
             </div>
-            <TransactionList transactions={transactions} onChanged={reload} />
-          </>
-        )}
+          )}
 
-        {tab === 'charts' && (
-          <>
-            <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>ניתוח</p>
-            <Charts transactions={transactions} currentMonthTransactions={currentMonthTxs} />
-          </>
-        )}
+          {/* כפיר / אדר split */}
+          <div className="card" style={{ padding: 20 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 14 }}>הוצאות לפי בן/בת זוג</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+              {(['כפיר', 'אדר', 'משותף'] as const).map((m, i) => (
+                <div key={m} style={{ background: 'var(--bg)', borderRadius: 12, padding: '12px 10px', textAlign: 'center' }}>
+                  <p style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>{m}</p>
+                  <p style={{ fontSize: 16, fontWeight: 700, color: i === 0 ? 'var(--accent)' : i === 1 ? '#7C3AED' : 'var(--text-2)' }}>
+                    {(split[m] ?? 0).toLocaleString('he-IL')} ₪
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
 
-        {tab === 'tips' && (
-          <>
-            <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>המלצות</p>
-            <TipsPanel transactions={transactions} />
-          </>
-        )}
-      </div>
+          {/* Recent transactions */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>פעולות אחרונות</p>
+              <button onClick={() => setTab('transactions')} style={{ fontSize: 12, color: 'var(--accent)', border: 'none', background: 'none', cursor: 'pointer', fontWeight: 500 }}>הכל ›</button>
+            </div>
+            <TransactionList transactions={transactions} onChanged={reload} limit={6} />
+          </div>
+        </>}
 
-      {/* Bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-20 border-t" style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(12px)', borderColor: 'var(--border)' }}>
-        <div className="max-w-lg mx-auto flex">
-          {([
-            { id: 'home', label: 'בית', icon: LayoutDashboard },
-            { id: 'transactions', label: 'עסקאות', icon: List },
-            { id: 'charts', label: 'ניתוח', icon: BarChart2 },
-            { id: 'tips', label: 'טיפים', icon: Lightbulb },
-          ] as { id: Tab; label: string; icon: React.ElementType }[]).map((t) => {
+        {/* ── TRANSACTIONS ── */}
+        {tab === 'transactions' && <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <p style={{ fontSize: 16, fontWeight: 700 }}>כל הפעולות</p>
+            <span style={{ fontSize: 12, background: 'var(--border)', padding: '3px 10px', borderRadius: 99, color: 'var(--text-2)', fontWeight: 500 }}>{transactions.length}</span>
+          </div>
+          <TransactionList transactions={transactions} onChanged={reload} />
+        </>}
+
+        {/* ── STATS ── */}
+        {tab === 'stats' && <>
+          <p style={{ fontSize: 16, fontWeight: 700 }}>סטטיסטיקה</p>
+
+          {/* Area chart */}
+          <div className="card" style={{ padding: 20 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>תזרים — 6 חודשים</p>
+            <p style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 16 }}>הכנסות מול הוצאות</p>
+            <ResponsiveContainer width="100%" height={160}>
+              <AreaChart data={chartData} margin={{ top: 0, right: 0, left: -28, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gIncome" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#059669" stopOpacity={0.15} />
+                    <stop offset="100%" stopColor="#059669" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="gExpense" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#DC2626" stopOpacity={0.12} />
+                    <stop offset="100%" stopColor="#DC2626" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <Tooltip formatter={(v) => `${Number(v).toLocaleString('he-IL')} ₪`}
+                  contentStyle={{ borderRadius: 10, border: '1px solid var(--border)', fontSize: 12, boxShadow: 'var(--shadow-md)' }} />
+                <Area type="monotone" dataKey="הכנסות" stroke="#059669" strokeWidth={2} fill="url(#gIncome)" dot={false} />
+                <Area type="monotone" dataKey="הוצאות" stroke="#DC2626" strokeWidth={2} fill="url(#gExpense)" dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+            <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 12 }}>
+              {[['הכנסות', '#059669'], ['הוצאות', '#DC2626']].map(([l, c]) => (
+                <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: c }} />
+                  <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{l}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Pie */}
+          <div className="card" style={{ padding: 20 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>הוצאות לפי קטגוריה</p>
+            <p style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 16 }}>חודש נוכחי</p>
+            {pieData.length === 0
+              ? <p style={{ textAlign: 'center', color: 'var(--text-3)', padding: '32px 0', fontSize: 13 }}>אין הוצאות החודש</p>
+              : <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <ResponsiveContainer width={120} height={120}>
+                    <RePie>
+                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={35} outerRadius={55} dataKey="value" paddingAngle={3} strokeWidth={0}>
+                        {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                      </Pie>
+                    </RePie>
+                  </ResponsiveContainer>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {pieData.slice(0, 5).map((item, i) => {
+                      const total = pieData.reduce((s, d) => s + d.value, 0);
+                      return (
+                        <div key={item.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <div style={{ width: 8, height: 8, borderRadius: 2, background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }} />
+                            <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{item.name}</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)' }}>{item.value.toLocaleString('he-IL')} ₪</span>
+                            <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{Math.round((item.value / total) * 100)}%</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            }
+          </div>
+
+          {/* Member stats */}
+          <div className="card" style={{ padding: 20 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 14 }}>התפלגות לפי בן/בת זוג</p>
+            {(['כפיר', 'אדר', 'משותף'] as const).map((m, i) => {
+              const val = split[m] ?? 0;
+              const total = (split.כפיר ?? 0) + (split.אדר ?? 0) + (split.משותף ?? 0);
+              const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+              const color = i === 0 ? 'var(--accent)' : i === 1 ? '#7C3AED' : 'var(--text-3)';
+              return (
+                <div key={m} style={{ marginBottom: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)' }}>{m}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color }}>{val.toLocaleString('he-IL')} ₪</span>
+                  </div>
+                  <div style={{ height: 6, background: 'var(--border)', borderRadius: 99, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 99 }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>}
+
+        {/* ── GOALS ── */}
+        {tab === 'goals' && <>
+          <p style={{ fontSize: 16, fontWeight: 700 }}>יעדי חיסכון</p>
+          <SavingsGoals goals={goals} onChanged={reload} />
+        </>}
+
+      </main>
+
+      {/* ── BOTTOM NAV ── */}
+      <nav style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+        background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(16px)',
+        borderTop: '1px solid var(--border)', paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+      }}>
+        <div style={{ maxWidth: 480, margin: '0 auto', display: 'flex' }}>
+          {TABS.map(t => {
             const active = tab === t.id;
             return (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className="flex-1 flex flex-col items-center gap-1 py-3 transition-colors"
-                style={{ color: active ? 'var(--accent)' : 'var(--text-tertiary)' }}>
-                <t.icon size={20} strokeWidth={active ? 2.5 : 1.8} />
-                <span className="text-[10px] font-medium">{t.label}</span>
+              <button key={t.id} onClick={() => setTab(t.id)} style={{
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                padding: '10px 0', border: 'none', background: 'none', cursor: 'pointer',
+                color: active ? 'var(--accent)' : 'var(--text-3)', transition: 'color 0.15s'
+              }}>
+                <t.icon size={21} strokeWidth={active ? 2.5 : 1.8} />
+                <span style={{ fontSize: 10, fontWeight: active ? 600 : 400 }}>{t.label}</span>
               </button>
             );
           })}
         </div>
-        <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
       </nav>
 
-      {showModal && <AddTransactionModal onClose={() => setShowModal(false)} onAdded={reload} />}
+      {showAdd && <AddTransactionModal onClose={() => setShowAdd(false)} onAdded={reload} />}
     </div>
   );
 }

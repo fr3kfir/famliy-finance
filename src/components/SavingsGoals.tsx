@@ -5,7 +5,7 @@ import { SavingsGoal } from '@/lib/types';
 import { saveGoals } from '@/lib/storage';
 import { Plus, Trash2 } from 'lucide-react';
 
-const EMOJIS = ['🏖️', '🚗', '🏠', '📱', '✈️', '🎓', '💍', '👶', '🎮', '💰', '🛋️', '🐾'];
+const EMOJIS = ['🏖️', '🚗', '🏠', '📱', '✈️', '🎓', '💍', '👶', '🛋️', '💰', '🐾', '🎮'];
 
 interface Props { goals: SavingsGoal[]; onChanged: () => void; }
 
@@ -15,115 +15,105 @@ export default function SavingsGoals({ goals, onChanged }: Props) {
   const [target, setTarget] = useState('');
   const [emoji, setEmoji] = useState('🏖️');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [addAmount, setAddAmount] = useState('');
+  const [amt, setAmt] = useState('');
 
-  function handleAdd(e: React.FormEvent) {
+  function add(e: React.FormEvent) {
     e.preventDefault();
     if (!name || !target) return;
     saveGoals([...goals, { id: Date.now().toString(), name, target: parseFloat(target), current: 0, emoji }]);
-    setName(''); setTarget(''); setEmoji('🏖️'); setAdding(false);
-    onChanged();
+    setName(''); setTarget(''); setEmoji('🏖️'); setAdding(false); onChanged();
   }
 
   function contribute(id: string) {
-    const amt = parseFloat(addAmount);
-    if (!amt) return;
-    saveGoals(goals.map((g) => g.id === id ? { ...g, current: Math.min(g.current + amt, g.target) } : g));
-    setEditingId(null); setAddAmount('');
-    onChanged();
+    const a = parseFloat(amt);
+    if (!a) return;
+    saveGoals(goals.map(g => g.id === id ? { ...g, current: Math.min(g.current + a, g.target) } : g));
+    setEditingId(null); setAmt(''); onChanged();
   }
 
   return (
-    <div className="surface p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>יעדי חיסכון</p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{goals.length} יעדים פעילים</p>
-        </div>
-        <button onClick={() => setAdding(true)}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-          style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>
-          <Plus size={13} /> הוסף
-        </button>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Add button */}
+      <button onClick={() => setAdding(true)}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', borderRadius: 14, border: '1.5px dashed var(--border)', background: 'transparent', cursor: 'pointer', color: 'var(--accent)', fontSize: 14, fontWeight: 600 }}>
+        <Plus size={16} /> הוסף יעד חיסכון
+      </button>
 
+      {/* Add form */}
       {adding && (
-        <form onSubmit={handleAdd} className="rounded-xl p-4 mb-4 flex flex-col gap-3" style={{ background: 'var(--bg)' }}>
-          <div className="flex gap-2 flex-wrap">
-            {EMOJIS.map((e) => (
+        <form onSubmit={add} className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)' }}>יעד חדש</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {EMOJIS.map(e => (
               <button key={e} type="button" onClick={() => setEmoji(e)}
-                className="w-9 h-9 rounded-xl text-xl flex items-center justify-center transition-all"
-                style={emoji === e ? { background: 'var(--accent)', boxShadow: '0 2px 8px rgba(0,113,227,0.3)' } : { background: '#fff', border: '1px solid var(--border)' }}>
+                style={{ width: 40, height: 40, borderRadius: 10, fontSize: 20, border: `2px solid ${emoji === e ? 'var(--accent)' : 'var(--border)'}`, background: emoji === e ? 'var(--accent-bg)' : 'var(--white)', cursor: 'pointer' }}>
                 {e}
               </button>
             ))}
           </div>
-          <input required placeholder="שם היעד" value={name} onChange={(e) => setName(e.target.value)}
-            className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none" style={{ borderColor: 'var(--border)' }} />
-          <input required type="number" placeholder="סכום יעד (₪)" value={target} onChange={(e) => setTarget(e.target.value)}
-            className="border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none" style={{ borderColor: 'var(--border)' }} />
-          <div className="flex gap-2">
-            <button type="submit" className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white" style={{ background: 'var(--accent)' }}>שמור</button>
-            <button type="button" onClick={() => setAdding(false)} className="px-4 text-sm" style={{ color: 'var(--text-secondary)' }}>ביטול</button>
+          <input required placeholder="שם היעד" value={name} onChange={e => setName(e.target.value)}
+            style={{ border: '1.5px solid var(--border)', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', outline: 'none' }} />
+          <input required type="number" placeholder="סכום יעד (₪)" value={target} onChange={e => setTarget(e.target.value)}
+            style={{ border: '1.5px solid var(--border)', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', outline: 'none' }} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: 12, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>שמור</button>
+            <button type="button" onClick={() => setAdding(false)} style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--white)', fontSize: 14, color: 'var(--text-2)', cursor: 'pointer' }}>ביטול</button>
           </div>
         </form>
       )}
 
-      {goals.length === 0 && !adding && (
-        <div className="text-center py-8">
-          <p className="text-3xl mb-2">🎯</p>
-          <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>הגדירו יעד חיסכון ראשון</p>
-        </div>
-      )}
-
-      <div className="flex flex-col gap-4">
-        {goals.map((g) => {
-          const pct = Math.min((g.current / g.target) * 100, 100);
-          return (
-            <div key={g.id}>
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-2xl">{g.emoji}</span>
-                <div className="flex-1">
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{g.name}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--accent)' }}>{pct.toFixed(0)}%</span>
-                      <button onClick={() => { saveGoals(goals.filter((x) => x.id !== g.id)); onChanged(); }}
-                        className="opacity-40 hover:opacity-100 transition-opacity" style={{ color: 'var(--expense)' }}>
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex justify-between text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                    <span>{g.current.toLocaleString('he-IL')} ₪</span>
-                    <span>{g.target.toLocaleString('he-IL')} ₪</span>
-                  </div>
+      {/* Goals list */}
+      {goals.map(g => {
+        const pct = Math.min((g.current / g.target) * 100, 100);
+        const done = pct >= 100;
+        return (
+          <div key={g.id} className="card" style={{ padding: 20 }}>
+            <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 16 }}>
+              <div style={{ width: 48, height: 48, borderRadius: 14, background: 'var(--accent-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>
+                {g.emoji}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <p style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-1)' }}>{g.name}</p>
+                  <button onClick={() => { saveGoals(goals.filter(x => x.id !== g.id)); onChanged(); }}
+                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0 }}>
+                    <Trash2 size={15} />
+                  </button>
                 </div>
+                <p style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 2 }}>
+                  {g.current.toLocaleString('he-IL')} מתוך {g.target.toLocaleString('he-IL')} ₪
+                </p>
               </div>
-              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
-                <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: pct >= 100 ? 'var(--income)' : 'var(--accent)' }} />
-              </div>
-              {pct >= 100
-                ? <p className="text-xs mt-1 font-medium" style={{ color: 'var(--income)' }}>🎉 הושג!</p>
-                : editingId === g.id
-                  ? (
-                    <div className="flex gap-2 mt-2">
-                      <input type="number" placeholder="סכום (₪)" value={addAmount} onChange={(e) => setAddAmount(e.target.value)}
-                        className="flex-1 border rounded-xl px-3 py-2 text-sm focus:outline-none" style={{ borderColor: 'var(--border)' }} />
-                      <button onClick={() => contribute(g.id)} className="px-3 py-2 rounded-xl text-sm font-medium text-white" style={{ background: 'var(--accent)' }}>הוסף</button>
-                      <button onClick={() => setEditingId(null)} className="text-sm px-1" style={{ color: 'var(--text-tertiary)' }}>✕</button>
-                    </div>
-                  )
-                  : (
-                    <button onClick={() => setEditingId(g.id)} className="text-xs mt-1 font-medium" style={{ color: 'var(--accent)' }}>
-                      + הוסף חיסכון
-                    </button>
-                  )
-              }
             </div>
-          );
-        })}
-      </div>
+
+            <div style={{ height: 8, background: 'var(--border)', borderRadius: 99, overflow: 'hidden', marginBottom: 8 }}>
+              <div style={{ height: '100%', width: `${pct}%`, borderRadius: 99, background: done ? 'var(--green)' : 'var(--accent)', transition: 'width 0.5s' }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <p style={{ fontSize: 12, color: done ? 'var(--green)' : 'var(--text-3)', fontWeight: done ? 600 : 400 }}>
+                {done ? '🎉 הושג!' : `נותר ${(g.target - g.current).toLocaleString('he-IL')} ₪`}
+              </p>
+              <span style={{ fontSize: 13, fontWeight: 700, color: done ? 'var(--green)' : 'var(--accent)' }}>{pct.toFixed(0)}%</span>
+            </div>
+
+            {!done && (editingId === g.id
+              ? (
+                <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                  <input type="number" placeholder="הוסף סכום (₪)" value={amt} onChange={e => setAmt(e.target.value)}
+                    style={{ flex: 1, border: '1.5px solid var(--border)', borderRadius: 10, padding: '10px 12px', fontSize: 14, outline: 'none' }} />
+                  <button onClick={() => contribute(g.id)} style={{ padding: '10px 16px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>הוסף</button>
+                  <button onClick={() => setEditingId(null)} style={{ padding: '10px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--white)', cursor: 'pointer', color: 'var(--text-2)', fontSize: 14 }}>✕</button>
+                </div>
+              )
+              : (
+                <button onClick={() => setEditingId(g.id)} style={{ marginTop: 14, padding: '10px', width: '100%', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>
+                  + הוסף חיסכון
+                </button>
+              )
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
