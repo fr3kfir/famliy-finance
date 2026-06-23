@@ -1,8 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f1f5f9;
-  --foreground: #0f172a;
+  --background: #f0f4ff;
+  --foreground: #1e293b;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
@@ -10,4 +14,21 @@ body {
   color: var(--foreground);
   direction: rtl;
   font-family: 'Segoe UI', system-ui, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.gradient-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.income-gradient {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.expense-gradient {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.savings-gradient {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
 }

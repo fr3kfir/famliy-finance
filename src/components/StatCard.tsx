@@ -3,31 +3,33 @@
 interface StatCardProps {
   title: string;
   amount: number;
-  color: 'green' | 'red' | 'blue';
-  icon: React.ReactNode;
+  subtitle?: string;
+  gradient: string;
+  icon: string;
+  trend?: number;
 }
 
-const colors = {
-  green: 'bg-green-50 border-green-200 text-green-700',
-  red: 'bg-red-50 border-red-200 text-red-700',
-  blue: 'bg-blue-50 border-blue-200 text-blue-700',
-};
+export default function StatCard({ title, amount, subtitle, gradient, icon, trend }: StatCardProps) {
+  const isPositive = trend !== undefined && trend >= 0;
 
-const amountColors = {
-  green: 'text-green-600',
-  red: 'text-red-600',
-  blue: 'text-blue-600',
-};
-
-export default function StatCard({ title, amount, color, icon }: StatCardProps) {
   return (
-    <div className={`rounded-2xl border p-5 ${colors[color]} flex items-center gap-4`}>
-      <div className="text-3xl">{icon}</div>
-      <div>
-        <p className="text-sm font-medium opacity-70">{title}</p>
-        <p className={`text-2xl font-bold ${amountColors[color]}`}>
-          {amount.toLocaleString('he-IL')} ₪
+    <div className={`${gradient} rounded-2xl p-5 text-white shadow-lg relative overflow-hidden`}>
+      <div className="absolute top-0 left-0 w-32 h-32 rounded-full bg-white/10 -translate-x-8 -translate-y-8" />
+      <div className="absolute bottom-0 right-0 w-20 h-20 rounded-full bg-white/10 translate-x-4 translate-y-4" />
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-white/80 text-sm font-medium">{title}</span>
+          <span className="text-2xl">{icon}</span>
+        </div>
+        <p className="text-3xl font-bold mb-1">
+          {amount.toLocaleString('he-IL')} <span className="text-xl font-medium">₪</span>
         </p>
+        {subtitle && <p className="text-white/70 text-xs">{subtitle}</p>}
+        {trend !== undefined && (
+          <p className={`text-xs mt-1 font-medium ${isPositive ? 'text-green-200' : 'text-red-200'}`}>
+            {isPositive ? '▲' : '▼'} {Math.abs(trend).toLocaleString('he-IL')} ₪ מהחודש שעבר
+          </p>
+        )}
       </div>
     </div>
   );
