@@ -23,7 +23,7 @@ export interface Budget {
   limit: number;
 }
 
-export const FAMILY_MEMBERS = ['כולם', 'אבא', 'אמא', 'ילד/ה 1', 'ילד/ה 2'];
+export const FAMILY_MEMBERS = ['כולם', 'כפיר', 'אדר'];
 
 export const EXPENSE_CATEGORIES = [
   { name: 'מזון וסופר', emoji: '🛒' },
