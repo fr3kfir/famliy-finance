@@ -50,6 +50,7 @@ export default function App() {
     <div style={{ background: 'var(--bg)', minHeight: '100svh', paddingBottom: 88 }}>
 
       {/* ── HEADER ── */}
+      <div style={{ background: '#FF0000', color: 'white', textAlign: 'center', padding: 12, fontWeight: 900, fontSize: 20 }}>🔴 גרסה חדשה נטענה! 🔴</div>
       <header style={{ background: 'var(--white)', borderBottom: '1px solid var(--border)', padding: '20px 20px 0' }}>
         <div style={{ maxWidth: 480, margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
