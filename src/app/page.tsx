@@ -8,7 +8,7 @@ import AddTransactionModal from '@/components/AddTransactionModal';
 import TransactionList from '@/components/TransactionList';
 import SavingsGoals from '@/components/SavingsGoals';
 import { Plus, Home, List, PieChart, Target } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RePie, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RePie, Pie, Cell, ReferenceLine, LabelList } from 'recharts';
 
 type Tab = 'home' | 'transactions' | 'stats' | 'goals';
 
@@ -49,8 +49,6 @@ export default function App() {
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100svh', paddingBottom: 88 }}>
 
-      {/* ── HEADER ── */}
-      <div style={{ background: '#FF0000', color: 'white', textAlign: 'center', padding: 12, fontWeight: 900, fontSize: 20 }}>🔴 גרסה חדשה נטענה! 🔴</div>
       <header style={{ background: 'var(--white)', borderBottom: '1px solid var(--border)', padding: '20px 20px 0' }}>
         <div style={{ maxWidth: 480, margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -166,34 +164,32 @@ export default function App() {
           {/* Area chart */}
           <div className="card" style={{ padding: 20 }}>
             <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>תזרים — 6 חודשים</p>
-            <p style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 16 }}>הכנסות מול הוצאות</p>
+            <p style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 16 }}>חיסכון נטו (חיובי מעל אפס, שלילי מתחת)</p>
             <ResponsiveContainer width="100%" height={160}>
-              <AreaChart data={chartData} margin={{ top: 0, right: 0, left: -28, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gIncome" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#059669" stopOpacity={0.15} />
-                    <stop offset="100%" stopColor="#059669" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="gExpense" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#DC2626" stopOpacity={0.12} />
-                    <stop offset="100%" stopColor="#DC2626" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
+              <BarChart data={chartData} margin={{ top: 8, right: 0, left: -28, bottom: 0 }}>
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                <Tooltip formatter={(v) => `${Number(v).toLocaleString('he-IL')} ₪`}
-                  contentStyle={{ borderRadius: 10, border: '1px solid var(--border)', fontSize: 12, boxShadow: 'var(--shadow-md)' }} />
-                <Area type="monotone" dataKey="הכנסות" stroke="#059669" strokeWidth={2} fill="url(#gIncome)" dot={false} />
-                <Area type="monotone" dataKey="הוצאות" stroke="#DC2626" strokeWidth={2} fill="url(#gExpense)" dot={false} />
-              </AreaChart>
+                <ReferenceLine y={0} stroke="#E5E7EB" strokeWidth={1.5} />
+                <Tooltip
+                  formatter={(v: number) => [`${Number(v).toLocaleString('he-IL')} ₪`, 'תזרים נטו']}
+                  contentStyle={{ borderRadius: 10, border: '1px solid var(--border)', fontSize: 12, boxShadow: 'var(--shadow-md)' }}
+                />
+                <Bar dataKey="חיסכון" radius={[4, 4, 4, 4]}>
+                  {chartData.map((entry, i) => (
+                    <Cell key={i} fill={entry.חיסכון >= 0 ? '#059669' : '#DC2626'} fillOpacity={0.85} />
+                  ))}
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
             <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 12 }}>
-              {[['הכנסות', '#059669'], ['הוצאות', '#DC2626']].map(([l, c]) => (
-                <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: c }} />
-                  <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{l}</span>
-                </div>
-              ))}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#059669' }} />
+                <span style={{ fontSize: 11, color: 'var(--text-3)' }}>חיסכון</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#DC2626' }} />
+                <span style={{ fontSize: 11, color: 'var(--text-3)' }}>גרעון</span>
+              </div>
             </div>
           </div>
 
