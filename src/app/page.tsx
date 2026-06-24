@@ -8,7 +8,7 @@ import AddTransactionModal from '@/components/AddTransactionModal';
 import TransactionList from '@/components/TransactionList';
 import SavingsGoals from '@/components/SavingsGoals';
 import { Plus, Home, List, PieChart, Target } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RePie, Pie, Cell, ReferenceLine, LabelList } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RePie, Pie, Cell, ReferenceLine } from 'recharts';
 
 type Tab = 'home' | 'transactions' | 'stats' | 'goals';
 
@@ -171,7 +171,7 @@ export default function App() {
                 <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
                 <ReferenceLine y={0} stroke="#E5E7EB" strokeWidth={1.5} />
                 <Tooltip
-                  formatter={(v: number) => [`${Number(v).toLocaleString('he-IL')} ₪`, 'תזרים נטו']}
+                  formatter={(v) => [`${Number(v).toLocaleString('he-IL')} ₪`, 'תזרים נטו']}
                   contentStyle={{ borderRadius: 10, border: '1px solid var(--border)', fontSize: 12, boxShadow: 'var(--shadow-md)' }}
                 />
                 <Bar dataKey="חיסכון" radius={[4, 4, 4, 4]}>
