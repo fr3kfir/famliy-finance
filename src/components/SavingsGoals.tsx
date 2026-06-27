@@ -17,17 +17,17 @@ export default function SavingsGoals({ goals, onChanged }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [amt, setAmt] = useState('');
 
-  function add(e: React.FormEvent) {
+  async function add(e: React.FormEvent) {
     e.preventDefault();
     if (!name || !target) return;
-    saveGoals([...goals, { id: Date.now().toString(), name, target: parseFloat(target), current: 0, emoji }]);
+    await saveGoals([...goals, { id: Date.now().toString(), name, target: parseFloat(target), current: 0, emoji }]);
     setName(''); setTarget(''); setEmoji('🏖️'); setAdding(false); onChanged();
   }
 
-  function contribute(id: string) {
+  async function contribute(id: string) {
     const a = parseFloat(amt);
     if (!a) return;
-    saveGoals(goals.map(g => g.id === id ? { ...g, current: Math.min(g.current + a, g.target) } : g));
+    await saveGoals(goals.map(g => g.id === id ? { ...g, current: Math.min(g.current + a, g.target) } : g));
     setEditingId(null); setAmt(''); onChanged();
   }
 
@@ -75,7 +75,7 @@ export default function SavingsGoals({ goals, onChanged }: Props) {
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <p style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-1)' }}>{g.name}</p>
-                  <button onClick={() => { saveGoals(goals.filter(x => x.id !== g.id)); onChanged(); }}
+                  <button onClick={async () => { await saveGoals(goals.filter(x => x.id !== g.id)); onChanged(); }}
                     style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 0 }}>
                     <Trash2 size={15} />
                   </button>
