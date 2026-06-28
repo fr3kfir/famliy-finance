@@ -9,7 +9,7 @@ import TransactionList from '@/components/TransactionList';
 import SavingsGoals from '@/components/SavingsGoals';
 import BudgetBars from '@/components/BudgetBars';
 import ManagePanel from '@/components/ManagePanel';
-import { Plus, Home, List, PieChart, Settings } from 'lucide-react';
+import { Plus, Home, List, PieChart, Settings, RefreshCw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RePie, Pie, Cell, ReferenceLine } from 'recharts';
 
 type Tab = 'home' | 'transactions' | 'stats' | 'manage';
@@ -24,12 +24,21 @@ export default function App() {
   const [tab,          setTab]          = useState<Tab>('home');
   const [showAdd,      setShowAdd]      = useState(false);
   const [loading,      setLoading]      = useState(true);
+  const [syncing,      setSyncing]      = useState(false);
+  const [lastSync,     setLastSync]     = useState<Date | null>(null);
 
-  const reload = useCallback(() => {
-    setTransactions(getTransactions());
-    setGoals(getGoals());
-    setBudget(getBudget());
-    setRecurring(getRecurring());
+  const reload = useCallback(async () => {
+    setSyncing(true);
+    try {
+      await loadAllData();
+      setTransactions(getTransactions());
+      setGoals(getGoals());
+      setBudget(getBudget());
+      setRecurring(getRecurring());
+      setLastSync(new Date());
+    } finally {
+      setSyncing(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -37,9 +46,18 @@ export default function App() {
       setLoading(true);
       await loadAllData();
       await applyRecurring();
-      reload();
+      setTransactions(getTransactions());
+      setGoals(getGoals());
+      setBudget(getBudget());
+      setRecurring(getRecurring());
+      setLastSync(new Date());
       setLoading(false);
     })();
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(reload, 30_000);
+    return () => clearInterval(id);
   }, [reload]);
 
   const now      = new Date();
@@ -86,11 +104,22 @@ export default function App() {
             <div>
               <p style={{ color: 'var(--text-3)', fontSize: 12, fontWeight: 500 }}>{monthName}</p>
               <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-1)', marginTop: 2 }}>משק הבית</h1>
+              {lastSync && (
+                <p style={{ color: 'var(--text-3)', fontSize: 10, marginTop: 2 }}>
+                  עודכן {lastSync.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              )}
             </div>
-            <button onClick={() => setShowAdd(true)}
-              style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(79,70,229,0.4)' }}>
-              <Plus size={22} strokeWidth={2.5} />
-            </button>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button onClick={() => reload()} disabled={syncing}
+                style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--bg)', color: 'var(--text-3)', border: '1px solid var(--border)', cursor: syncing ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <RefreshCw size={15} strokeWidth={2} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
+              </button>
+              <button onClick={() => setShowAdd(true)}
+                style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(79,70,229,0.4)' }}>
+                <Plus size={22} strokeWidth={2.5} />
+              </button>
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: 4 }}>
