@@ -42,22 +42,46 @@ function lsSet(key: string, value: unknown) {
 
 // ─── Load all data (API → fallback to localStorage) ─────────────────────────
 export async function loadAllData() {
+  const localTx        = lsGet<Transaction[]>(LS.tx, []);
+  const localGoals     = lsGet<SavingsGoal[]>(LS.goals, []);
+  const localBudget    = lsGet<BudgetSettings>(LS.budget, {});
+  const localRecurring = lsGet<RecurringTransaction[]>(LS.recurring, []);
+
   try {
     const remote = await apiGet();
-    // cache locally
+
+    // Cloud is empty but device has data → first-sync: upload local data to cloud
+    if (!remote.transactions.length && localTx.length) {
+      await Promise.all([
+        apiPost('transactions', localTx),
+        apiPost('goals',        localGoals),
+        apiPost('budget',       localBudget),
+        apiPost('recurring',    localRecurring),
+      ]).catch(() => {});
+      return { transactions: localTx, goals: localGoals, budget: localBudget, recurring: localRecurring };
+    }
+
+    // Cloud has data → merge with local by unique id, cloud wins on conflict
+    const merged = remote.transactions;
+    if (localTx.length) {
+      const cloudIds = new Set(remote.transactions.map((t: Transaction) => t.id));
+      const localOnly = localTx.filter(t => !cloudIds.has(t.id));
+      if (localOnly.length) {
+        const combined = [...remote.transactions, ...localOnly]
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        await apiPost('transactions', combined).catch(() => {});
+        remote.transactions = combined;
+      }
+    }
+    void merged;
+
     lsSet(LS.tx,        remote.transactions);
     lsSet(LS.goals,     remote.goals);
     lsSet(LS.budget,    remote.budget);
     lsSet(LS.recurring, remote.recurring);
     return remote;
   } catch {
-    // offline fallback
-    return {
-      transactions: lsGet<Transaction[]>(LS.tx, []),
-      goals:        lsGet<SavingsGoal[]>(LS.goals, []),
-      budget:       lsGet<BudgetSettings>(LS.budget, {}),
-      recurring:    lsGet<RecurringTransaction[]>(LS.recurring, []),
-    };
+    return { transactions: localTx, goals: localGoals, budget: localBudget, recurring: localRecurring };
   }
 }
 
