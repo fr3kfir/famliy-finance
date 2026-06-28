@@ -36,6 +36,9 @@ export async function POST(req: NextRequest) {
   const key = keyMap[type];
   if (!key) return NextResponse.json({ error: 'unknown type' }, { status: 400 });
 
-  await redis.set(key, data);
+  await Promise.all([
+    redis.set(key, data),
+    redis.set('ff:version', Date.now()),
+  ]);
   return NextResponse.json({ ok: true });
 }

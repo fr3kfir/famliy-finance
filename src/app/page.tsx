@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Transaction, SavingsGoal, BudgetSettings, RecurringTransaction } from '@/lib/types';
 import { loadAllData, getTransactions, getGoals, getBudget, getRecurring, applyRecurring } from '@/lib/storage';
 import { getMonthlyStats, getMemberSplit, getCategoryBreakdown, getLast6MonthsData, getTodayStats, getProjection } from '@/lib/analytics';
@@ -24,6 +24,8 @@ export default function App() {
   const [tab,          setTab]          = useState<Tab>('home');
   const [showAdd,      setShowAdd]      = useState(false);
   const [loading,      setLoading]      = useState(true);
+  const [syncing,      setSyncing]      = useState(false);
+  const versionRef = useRef<number>(0);
 
   const reload = useCallback(() => {
     setTransactions(getTransactions());
@@ -39,7 +41,31 @@ export default function App() {
       await applyRecurring();
       reload();
       setLoading(false);
+      // seed initial version
+      try {
+        const r = await fetch('/api/sync');
+        const { version } = await r.json();
+        versionRef.current = version ?? 0;
+      } catch {}
     })();
+  }, [reload]);
+
+  // Cross-device sync: poll for remote version changes every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const r = await fetch('/api/sync');
+        const { version } = await r.json();
+        if (version && version !== versionRef.current) {
+          versionRef.current = version;
+          setSyncing(true);
+          await loadAllData();
+          reload();
+          setSyncing(false);
+        }
+      } catch {}
+    }, 5000);
+    return () => clearInterval(interval);
   }, [reload]);
 
   const now      = new Date();
@@ -76,6 +102,10 @@ export default function App() {
     </div>
   );
 
+  const SyncDot = syncing ? (
+    <span title="מסנכרן..." style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', animation: 'pulse 1s ease-in-out infinite', marginInlineStart: 6, verticalAlign: 'middle' }} />
+  ) : null;
+
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100svh', paddingBottom: 88 }}>
 
@@ -85,7 +115,7 @@ export default function App() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div>
               <p style={{ color: 'var(--text-3)', fontSize: 12, fontWeight: 500 }}>{monthName}</p>
-              <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-1)', marginTop: 2 }}>משק הבית</h1>
+              <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-1)', marginTop: 2 }}>משק הבית{SyncDot}</h1>
             </div>
             <button onClick={() => setShowAdd(true)}
               style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(79,70,229,0.4)' }}>
@@ -366,7 +396,10 @@ export default function App() {
 
       {showAdd && <AddTransactionModal onClose={() => setShowAdd(false)} onAdded={reload} />}
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+      `}</style>
     </div>
   );
 }
