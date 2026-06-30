@@ -20,11 +20,11 @@ async function apiGet(): Promise<{
   return r.json();
 }
 
-async function apiPost(type: string, data: unknown) {
+async function apiPost(body: Record<string, unknown>) {
   await fetch('/api/data', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type, data }),
+    body: JSON.stringify(body),
   });
 }
 
@@ -53,27 +53,13 @@ export async function loadAllData() {
     // Cloud is empty but device has data → first-sync: upload local data to cloud
     if (!remote.transactions.length && localTx.length) {
       await Promise.all([
-        apiPost('transactions', localTx),
-        apiPost('goals',        localGoals),
-        apiPost('budget',       localBudget),
-        apiPost('recurring',    localRecurring),
+        apiPost({ type: 'transactions', data: localTx }),
+        apiPost({ type: 'goals',        data: localGoals }),
+        apiPost({ type: 'budget',       data: localBudget }),
+        apiPost({ type: 'recurring',    data: localRecurring }),
       ]).catch(() => {});
       return { transactions: localTx, goals: localGoals, budget: localBudget, recurring: localRecurring };
     }
-
-    // Cloud has data → merge with local by unique id, cloud wins on conflict
-    const merged = remote.transactions;
-    if (localTx.length) {
-      const cloudIds = new Set(remote.transactions.map((t: Transaction) => t.id));
-      const localOnly = localTx.filter(t => !cloudIds.has(t.id));
-      if (localOnly.length) {
-        const combined = [...remote.transactions, ...localOnly]
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        await apiPost('transactions', combined).catch(() => {});
-        remote.transactions = combined;
-      }
-    }
-    void merged;
 
     lsSet(LS.tx,        remote.transactions);
     lsSet(LS.goals,     remote.goals);
@@ -90,23 +76,22 @@ export function getTransactions(): Transaction[] {
   return lsGet<Transaction[]>(LS.tx, []);
 }
 
-export async function saveTransactions(txs: Transaction[]) {
-  lsSet(LS.tx, txs);
-  await apiPost('transactions', txs).catch(() => {});
-}
-
 export async function addTransaction(tx: Transaction) {
-  const all = getTransactions();
-  await saveTransactions([tx, ...all]);
+  const all = [tx, ...getTransactions()];
+  lsSet(LS.tx, all);
+  await apiPost({ type: 'transactions', action: 'add', data: [tx] }).catch(() => {});
 }
 
 export async function updateTransaction(id: string, fields: Partial<Transaction>) {
   const all = getTransactions().map(t => t.id === id ? { ...t, ...fields } : t);
-  await saveTransactions(all);
+  lsSet(LS.tx, all);
+  const updated = all.find(t => t.id === id);
+  if (updated) await apiPost({ type: 'transactions', action: 'update', data: updated }).catch(() => {});
 }
 
 export async function deleteTransaction(id: string) {
-  await saveTransactions(getTransactions().filter(t => t.id !== id));
+  lsSet(LS.tx, getTransactions().filter(t => t.id !== id));
+  await apiPost({ type: 'transactions', action: 'delete', id }).catch(() => {});
 }
 
 // ─── Goals ────────────────────────────────────────────────────────────────────
@@ -116,7 +101,7 @@ export function getGoals(): SavingsGoal[] {
 
 export async function saveGoals(goals: SavingsGoal[]) {
   lsSet(LS.goals, goals);
-  await apiPost('goals', goals).catch(() => {});
+  await apiPost({ type: 'goals', data: goals }).catch(() => {});
 }
 
 // ─── Budget ──────────────────────────────────────────────────────────────────
@@ -126,7 +111,7 @@ export function getBudget(): BudgetSettings {
 
 export async function saveBudget(budget: BudgetSettings) {
   lsSet(LS.budget, budget);
-  await apiPost('budget', budget).catch(() => {});
+  await apiPost({ type: 'budget', data: budget }).catch(() => {});
 }
 
 // ─── Recurring ────────────────────────────────────────────────────────────────
@@ -136,7 +121,7 @@ export function getRecurring(): RecurringTransaction[] {
 
 export async function saveRecurring(recurring: RecurringTransaction[]) {
   lsSet(LS.recurring, recurring);
-  await apiPost('recurring', recurring).catch(() => {});
+  await apiPost({ type: 'recurring', data: recurring }).catch(() => {});
 }
 
 // ─── Apply recurring transactions for this month ─────────────────────────────
@@ -172,6 +157,8 @@ export async function applyRecurring() {
   const fresh = toAdd.filter(t => !existingIds.has(t.id));
   if (!fresh.length) return;
 
-  await saveTransactions([...fresh, ...getTransactions()]);
+  const all = [...fresh, ...getTransactions()];
+  lsSet(LS.tx, all);
+  await apiPost({ type: 'transactions', action: 'add', data: fresh }).catch(() => {});
   await saveRecurring(updated);
 }

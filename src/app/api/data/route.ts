@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const BLOB_PATH = 'ff/data.json';
 
 interface AppData {
-  transactions: unknown[];
+  transactions: Array<{ id: string; [key: string]: unknown }>;
   goals: unknown[];
   budget: unknown;
   recurring: unknown[];
@@ -44,7 +44,13 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { type, data } = body as { type: keyof AppData; data: unknown };
+  const { action, type, data, id, ids } = body as {
+    action?: 'add' | 'delete' | 'update' | 'replace';
+    type: keyof AppData;
+    data?: unknown;
+    id?: string;
+    ids?: string[];
+  };
 
   const validTypes: (keyof AppData)[] = ['transactions', 'goals', 'budget', 'recurring'];
   if (!validTypes.includes(type)) {
@@ -52,8 +58,29 @@ export async function POST(req: NextRequest) {
   }
 
   const current = await readData();
-  current[type] = data as never;
-  await writeData(current);
 
+  if (type === 'transactions') {
+    const txs = current.transactions;
+
+    if (action === 'add') {
+      const incoming = (Array.isArray(data) ? data : [data]) as Array<{ id: string }>;
+      const existingIds = new Set(txs.map(t => t.id));
+      const fresh = incoming.filter(t => !existingIds.has(t.id));
+      current.transactions = [...fresh, ...txs];
+    } else if (action === 'delete') {
+      const toDelete = new Set(ids ?? (id ? [id] : []));
+      current.transactions = txs.filter(t => !toDelete.has(t.id));
+    } else if (action === 'update') {
+      const patch = data as { id: string; [key: string]: unknown };
+      current.transactions = txs.map(t => t.id === patch.id ? { ...t, ...patch } : t);
+    } else {
+      // legacy replace (used by first-sync only)
+      current.transactions = data as AppData['transactions'];
+    }
+  } else {
+    current[type] = data as never;
+  }
+
+  await writeData(current);
   return NextResponse.json({ ok: true });
 }
