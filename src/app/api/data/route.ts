@@ -21,7 +21,12 @@ async function readData(): Promise<AppData> {
   try {
     const { blobs } = await list({ prefix: BLOB_PATH });
     if (!blobs.length) return DEFAULT_DATA;
-    const res = await fetch(blobs[0].url, { cache: 'no-store' });
+    // Cache-bust the CDN edge: the blob URL is served through Vercel's CDN,
+    // and `cache: 'no-store'` alone does NOT bypass that upstream cache.
+    // A unique query string forces a fresh fetch from origin every time,
+    // so every device sees the latest write instead of a stale cached copy.
+    const url = `${blobs[0].url}?t=${Date.now()}`;
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) return DEFAULT_DATA;
     return await res.json();
   } catch {
@@ -34,6 +39,11 @@ async function writeData(data: AppData): Promise<void> {
     access: 'public',
     contentType: 'application/json',
     addRandomSuffix: false,
+    // Keep the CDN cache as short as allowed (minimum is 60s) so the data
+    // blob reflects fresh writes quickly. The default is one month, which is
+    // why other devices kept reading stale data and never synced. Immediate
+    // freshness is guaranteed by the cache-busting query string in readData.
+    cacheControlMaxAge: 60,
   });
 }
 
