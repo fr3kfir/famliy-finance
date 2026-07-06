@@ -14,17 +14,19 @@ async function apiGet(): Promise<{
   goals: SavingsGoal[];
   budget: BudgetSettings;
   recurring: RecurringTransaction[];
+  deletedTxIds: string[];
 }> {
   const r = await fetch('/api/data', { cache: 'no-store' });
   if (!r.ok) throw new Error('API error');
-  return r.json();
+  const data = await r.json();
+  return { deletedTxIds: [], ...data };
 }
 
-async function apiPost(type: string, data: unknown) {
+async function apiPost(type: string, data: unknown, op?: string) {
   await fetch('/api/data', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type, data }),
+    body: JSON.stringify({ type, op, data }),
   });
 }
 
@@ -53,7 +55,7 @@ export async function loadAllData() {
     // Cloud is empty but device has data → first-sync: upload local data to cloud
     if (!remote.transactions.length && localTx.length) {
       await Promise.all([
-        apiPost('transactions', localTx),
+        apiPost('transactions', localTx, 'add'),
         apiPost('goals',        localGoals),
         apiPost('budget',       localBudget),
         apiPost('recurring',    localRecurring),
@@ -61,19 +63,16 @@ export async function loadAllData() {
       return { transactions: localTx, goals: localGoals, budget: localBudget, recurring: localRecurring };
     }
 
-    // Cloud has data → merge with local by unique id, cloud wins on conflict
-    const merged = remote.transactions;
-    if (localTx.length) {
-      const cloudIds = new Set(remote.transactions.map((t: Transaction) => t.id));
-      const localOnly = localTx.filter(t => !cloudIds.has(t.id));
-      if (localOnly.length) {
-        const combined = [...remote.transactions, ...localOnly]
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        await apiPost('transactions', combined).catch(() => {});
-        remote.transactions = combined;
-      }
+    // Transactions this device has but the cloud doesn't: either added here while
+    // offline (→ upload) or deleted on the other device (tombstoned → drop).
+    const deleted  = new Set(remote.deletedTxIds);
+    const cloudIds = new Set(remote.transactions.map((t: Transaction) => t.id));
+    const localOnly = localTx.filter(t => !cloudIds.has(t.id) && !deleted.has(t.id));
+    if (localOnly.length) {
+      apiPost('transactions', localOnly, 'add').catch(() => {});
+      remote.transactions = [...remote.transactions, ...localOnly]
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
-    void merged;
 
     lsSet(LS.tx,        remote.transactions);
     lsSet(LS.goals,     remote.goals);
@@ -86,27 +85,34 @@ export async function loadAllData() {
 }
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
+// Each mutation is sent to the server as a targeted operation (add/update/delete
+// of specific transactions) rather than uploading the whole list — uploading the
+// full list from a stale device used to wipe out entries the other device added.
 export function getTransactions(): Transaction[] {
   return lsGet<Transaction[]>(LS.tx, []);
 }
 
-export async function saveTransactions(txs: Transaction[]) {
-  lsSet(LS.tx, txs);
-  await apiPost('transactions', txs).catch(() => {});
+export async function addTransaction(tx: Transaction) {
+  lsSet(LS.tx, [tx, ...getTransactions()]);
+  await apiPost('transactions', tx, 'add').catch(() => {});
 }
 
-export async function addTransaction(tx: Transaction) {
-  const all = getTransactions();
-  await saveTransactions([tx, ...all]);
+export async function addTransactions(txs: Transaction[]) {
+  if (!txs.length) return;
+  lsSet(LS.tx, [...txs, ...getTransactions()]);
+  await apiPost('transactions', txs, 'add').catch(() => {});
 }
 
 export async function updateTransaction(id: string, fields: Partial<Transaction>) {
   const all = getTransactions().map(t => t.id === id ? { ...t, ...fields } : t);
-  await saveTransactions(all);
+  lsSet(LS.tx, all);
+  const updated = all.find(t => t.id === id);
+  if (updated) await apiPost('transactions', updated, 'update').catch(() => {});
 }
 
 export async function deleteTransaction(id: string) {
-  await saveTransactions(getTransactions().filter(t => t.id !== id));
+  lsSet(LS.tx, getTransactions().filter(t => t.id !== id));
+  await apiPost('transactions', id, 'delete').catch(() => {});
 }
 
 // ─── Goals ────────────────────────────────────────────────────────────────────
@@ -172,6 +178,6 @@ export async function applyRecurring() {
   const fresh = toAdd.filter(t => !existingIds.has(t.id));
   if (!fresh.length) return;
 
-  await saveTransactions([...fresh, ...getTransactions()]);
+  await addTransactions(fresh);
   await saveRecurring(updated);
 }

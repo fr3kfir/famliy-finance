@@ -56,8 +56,22 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const id = setInterval(reload, 30_000);
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') reload();
+    }, 30_000);
     return () => clearInterval(id);
+  }, [reload]);
+
+  // Refresh immediately when returning to the app, so entries the other
+  // device added while this one was in the background show up right away
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') reload(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
   }, [reload]);
 
   const now      = new Date();
@@ -72,6 +86,10 @@ export default function App() {
   const chartData = getLast6MonthsData(transactions);
   const today     = getTodayStats(transactions);
   const projection = getProjection(transactions, now.getFullYear(), now.getMonth());
+
+  const japanTx      = transactions.filter(t => t.type === 'expense' && t.category === 'יפן');
+  const japanTotal   = japanTx.reduce((s, t) => s + t.amount, 0);
+  const japanMonthly = thisMonth.filter(t => t.type === 'expense' && t.category === 'יפן').reduce((s, t) => s + t.amount, 0);
 
   const savePct  = income > 0 ? Math.round((savings / income) * 100) : 0;
   const spendPct = income > 0 ? Math.min(Math.round((expenses / income) * 100), 100) : 0;
@@ -192,6 +210,24 @@ export default function App() {
               ) : (
                 <p style={{ fontSize: 14, color: 'var(--text-3)', marginTop: 2 }}>הוסיפו עסקאות</p>
               )}
+            </div>
+          </div>
+
+          {/* Japan expenses */}
+          <div className="card" style={{ padding: 20, background: 'linear-gradient(135deg, #BE123C 0%, #E11D48 100%)', border: 'none' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <p style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.75)', marginBottom: 4 }}>🇯🇵 הוצאות ליפן</p>
+                <p style={{ fontSize: 28, fontWeight: 800, color: '#fff', lineHeight: 1 }}>
+                  {japanTotal.toLocaleString('he-IL')} <span style={{ fontSize: 16, fontWeight: 400 }}>₪</span>
+                </p>
+                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 6 }}>
+                  {japanTx.length > 0
+                    ? `${japanTx.length} פעולות · החודש: ${japanMonthly.toLocaleString('he-IL')} ₪`
+                    : 'הוסיפו הוצאה בקטגוריית "יפן" כדי לעקוב'}
+                </p>
+              </div>
+              <span style={{ fontSize: 40 }}>⛩️</span>
             </div>
           </div>
 
