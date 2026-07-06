@@ -47,6 +47,7 @@ export const EXPENSE_CATEGORIES = [
   { name: 'ביגוד',      emoji: '👗' },
   { name: 'מסעדות',     emoji: '🍽️' },
   { name: 'נסיעות',     emoji: '✈️' },
+  { name: 'יפן',        emoji: '🇯🇵' },
   { name: 'חיסכון',     emoji: '🐷' },
   { name: 'אחר',        emoji: '📦' },
 ];

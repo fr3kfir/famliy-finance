@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Transaction, SavingsGoal, BudgetSettings, RecurringTransaction } from '@/lib/types';
 import { loadAllData, getTransactions, getGoals, getBudget, getRecurring, applyRecurring } from '@/lib/storage';
 import { getMonthlyStats, getMemberSplit, getCategoryBreakdown, getLast6MonthsData, getTodayStats, getProjection } from '@/lib/analytics';
@@ -9,7 +9,7 @@ import TransactionList from '@/components/TransactionList';
 import SavingsGoals from '@/components/SavingsGoals';
 import BudgetBars from '@/components/BudgetBars';
 import ManagePanel from '@/components/ManagePanel';
-import { Plus, Home, List, PieChart, Settings } from 'lucide-react';
+import { Plus, Home, List, PieChart, Settings, RefreshCw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RePie, Pie, Cell, ReferenceLine } from 'recharts';
 
 type Tab = 'home' | 'transactions' | 'stats' | 'manage';
@@ -25,13 +25,20 @@ export default function App() {
   const [showAdd,      setShowAdd]      = useState(false);
   const [loading,      setLoading]      = useState(true);
   const [syncing,      setSyncing]      = useState(false);
-  const versionRef = useRef<number>(0);
+  const [lastSync,     setLastSync]     = useState<Date | null>(null);
 
-  const reload = useCallback(() => {
-    setTransactions(getTransactions());
-    setGoals(getGoals());
-    setBudget(getBudget());
-    setRecurring(getRecurring());
+  const reload = useCallback(async () => {
+    setSyncing(true);
+    try {
+      await loadAllData();
+      setTransactions(getTransactions());
+      setGoals(getGoals());
+      setBudget(getBudget());
+      setRecurring(getRecurring());
+      setLastSync(new Date());
+    } finally {
+      setSyncing(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -39,33 +46,48 @@ export default function App() {
       setLoading(true);
       await loadAllData();
       await applyRecurring();
-      reload();
+      setTransactions(getTransactions());
+      setGoals(getGoals());
+      setBudget(getBudget());
+      setRecurring(getRecurring());
+      setLastSync(new Date());
       setLoading(false);
-      // seed initial version
-      try {
-        const r = await fetch('/api/sync');
-        const { version } = await r.json();
-        versionRef.current = version ?? 0;
-      } catch {}
     })();
+  }, []);
+
+  // Poll the cheap /api/sync version endpoint every 5s; pull full data only
+  // when another device actually wrote something
+  useEffect(() => {
+    let lastVersion = 0;
+    let busy = false;
+    const id = setInterval(async () => {
+      if (document.visibilityState !== 'visible' || busy) return;
+      busy = true;
+      try {
+        const r = await fetch('/api/sync', { cache: 'no-store' });
+        if (r.ok) {
+          const { version } = await r.json();
+          if (version && version !== lastVersion) {
+            lastVersion = version;
+            await reload();
+          }
+        }
+      } catch { /* offline — try again next tick */ }
+      finally { busy = false; }
+    }, 5_000);
+    return () => clearInterval(id);
   }, [reload]);
 
-  // Cross-device sync: poll for remote version changes every 5 seconds
+  // Refresh immediately when returning to the app, so entries the other
+  // device added while this one was in the background show up right away
   useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const r = await fetch('/api/sync');
-        const { version } = await r.json();
-        if (version && version !== versionRef.current) {
-          versionRef.current = version;
-          setSyncing(true);
-          await loadAllData();
-          reload();
-          setSyncing(false);
-        }
-      } catch {}
-    }, 5000);
-    return () => clearInterval(interval);
+    const onVisible = () => { if (document.visibilityState === 'visible') reload(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
   }, [reload]);
 
   const now      = new Date();
@@ -80,6 +102,10 @@ export default function App() {
   const chartData = getLast6MonthsData(transactions);
   const today     = getTodayStats(transactions);
   const projection = getProjection(transactions, now.getFullYear(), now.getMonth());
+
+  const japanTx      = transactions.filter(t => t.type === 'expense' && t.category === 'יפן');
+  const japanTotal   = japanTx.reduce((s, t) => s + t.amount, 0);
+  const japanMonthly = thisMonth.filter(t => t.type === 'expense' && t.category === 'יפן').reduce((s, t) => s + t.amount, 0);
 
   const savePct  = income > 0 ? Math.round((savings / income) * 100) : 0;
   const spendPct = income > 0 ? Math.min(Math.round((expenses / income) * 100), 100) : 0;
@@ -102,10 +128,6 @@ export default function App() {
     </div>
   );
 
-  const SyncDot = syncing ? (
-    <span title="מסנכרן..." style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', animation: 'pulse 1s ease-in-out infinite', marginInlineStart: 6, verticalAlign: 'middle' }} />
-  ) : null;
-
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100svh', paddingBottom: 88 }}>
 
@@ -115,12 +137,23 @@ export default function App() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div>
               <p style={{ color: 'var(--text-3)', fontSize: 12, fontWeight: 500 }}>{monthName}</p>
-              <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-1)', marginTop: 2 }}>משק הבית{SyncDot}</h1>
+              <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-1)', marginTop: 2 }}>משק הבית</h1>
+              {lastSync && (
+                <p style={{ color: 'var(--text-3)', fontSize: 10, marginTop: 2 }}>
+                  עודכן {lastSync.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              )}
             </div>
-            <button onClick={() => setShowAdd(true)}
-              style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(79,70,229,0.4)' }}>
-              <Plus size={22} strokeWidth={2.5} />
-            </button>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button onClick={() => reload()} disabled={syncing}
+                style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--bg)', color: 'var(--text-3)', border: '1px solid var(--border)', cursor: syncing ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <RefreshCw size={15} strokeWidth={2} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
+              </button>
+              <button onClick={() => setShowAdd(true)}
+                style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(79,70,229,0.4)' }}>
+                <Plus size={22} strokeWidth={2.5} />
+              </button>
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: 4 }}>
@@ -193,6 +226,24 @@ export default function App() {
               ) : (
                 <p style={{ fontSize: 14, color: 'var(--text-3)', marginTop: 2 }}>הוסיפו עסקאות</p>
               )}
+            </div>
+          </div>
+
+          {/* Japan expenses */}
+          <div className="card" style={{ padding: 20, background: 'linear-gradient(135deg, #BE123C 0%, #E11D48 100%)', border: 'none' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <p style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.75)', marginBottom: 4 }}>🇯🇵 הוצאות ליפן</p>
+                <p style={{ fontSize: 28, fontWeight: 800, color: '#fff', lineHeight: 1 }}>
+                  {japanTotal.toLocaleString('he-IL')} <span style={{ fontSize: 16, fontWeight: 400 }}>₪</span>
+                </p>
+                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 6 }}>
+                  {japanTx.length > 0
+                    ? `${japanTx.length} פעולות · החודש: ${japanMonthly.toLocaleString('he-IL')} ₪`
+                    : 'הוסיפו הוצאה בקטגוריית "יפן" כדי לעקוב'}
+                </p>
+              </div>
+              <span style={{ fontSize: 40 }}>⛩️</span>
             </div>
           </div>
 
@@ -396,10 +447,7 @@ export default function App() {
 
       {showAdd && <AddTransactionModal onClose={() => setShowAdd(false)} onAdded={reload} />}
 
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-      `}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
