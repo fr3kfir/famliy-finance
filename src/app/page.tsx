@@ -55,10 +55,26 @@ export default function App() {
     })();
   }, []);
 
+  // Poll the cheap /api/sync version endpoint every 5s; pull full data only
+  // when another device actually wrote something
   useEffect(() => {
-    const id = setInterval(() => {
-      if (document.visibilityState === 'visible') reload();
-    }, 30_000);
+    let lastVersion = 0;
+    let busy = false;
+    const id = setInterval(async () => {
+      if (document.visibilityState !== 'visible' || busy) return;
+      busy = true;
+      try {
+        const r = await fetch('/api/sync', { cache: 'no-store' });
+        if (r.ok) {
+          const { version } = await r.json();
+          if (version && version !== lastVersion) {
+            lastVersion = version;
+            await reload();
+          }
+        }
+      } catch { /* offline — try again next tick */ }
+      finally { busy = false; }
+    }, 5_000);
     return () => clearInterval(id);
   }, [reload]);
 
