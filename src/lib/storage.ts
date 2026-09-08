@@ -162,7 +162,6 @@ export async function applyRecurring() {
       category:    r.category,
       description: r.description || `${r.description} (אוטומטי)`,
       date:        date.toISOString().split('T')[0],
-      member:      r.member,
     });
     return { ...r, lastApplied: monthKey };
   });

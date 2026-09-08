@@ -46,15 +46,6 @@ export function getCategoryBreakdown(transactions: Transaction[]) {
     .sort((a, b) => b.value - a.value);
 }
 
-export function getMemberSplit(transactions: Transaction[]) {
-  const expenses = transactions.filter(t => t.type === 'expense');
-  return {
-    כפיר:  expenses.filter(t => t.member === 'כפיר').reduce((s, t) => s + t.amount, 0),
-    אדר:   expenses.filter(t => t.member === 'אדר').reduce((s, t) => s + t.amount, 0),
-    משותף: expenses.filter(t => t.member === 'משותף').reduce((s, t) => s + t.amount, 0),
-  };
-}
-
 export function getLast6MonthsData(transactions: Transaction[]) {
   const now = new Date();
   return Array.from({ length: 6 }, (_, i) => {

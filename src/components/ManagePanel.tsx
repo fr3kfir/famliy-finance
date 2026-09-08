@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { BudgetSettings, RecurringTransaction, EXPENSE_CATEGORIES, INCOME_CATEGORIES, MEMBERS } from '@/lib/types';
+import { BudgetSettings, RecurringTransaction, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/lib/types';
 import { saveBudget, saveRecurring } from '@/lib/storage';
 import { Plus, Trash2, RefreshCw } from 'lucide-react';
 
@@ -86,7 +86,6 @@ function RecurringEditor({ recurring, onChanged }: { recurring: RecurringTransac
   const [amount, setAmount] = useState('');
   const [cat,    setCat]    = useState('');
   const [desc,   setDesc]   = useState('');
-  const [member, setMember] = useState<'כפיר' | 'אדר' | 'משותף'>('משותף');
   const [day,    setDay]    = useState('1');
   const cats = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
 
@@ -95,7 +94,7 @@ function RecurringEditor({ recurring, onChanged }: { recurring: RecurringTransac
     if (!amount || !cat) return;
     const updated = [...recurring, {
       id: Date.now().toString(), type, amount: parseFloat(amount),
-      category: cat, description: desc, member, dayOfMonth: parseInt(day), active: true,
+      category: cat, description: desc, dayOfMonth: parseInt(day), active: true,
     }];
     await saveRecurring(updated);
     setAdding(false); setAmount(''); setCat(''); setDesc('');
@@ -167,17 +166,6 @@ function RecurringEditor({ recurring, onChanged }: { recurring: RecurringTransac
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-            {MEMBERS.map(m => (
-              <button key={m} type="button" onClick={() => setMember(m as typeof member)}
-                style={{ padding: '8px', borderRadius: 10, border: `1.5px solid ${member === m ? 'var(--accent)' : 'var(--border)'}`,
-                  background: member === m ? 'var(--accent-bg)' : 'var(--white)',
-                  cursor: 'pointer', fontSize: 12, fontWeight: 600, color: member === m ? 'var(--accent)' : 'var(--text-2)' }}>
-                {m}
-              </button>
-            ))}
-          </div>
-
           <input type="text" placeholder="תיאור (ארנונה, חשמל...)" value={desc} onChange={e => setDesc(e.target.value)}
             style={{ border: '1.5px solid var(--border)', borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none' }} />
 
@@ -202,7 +190,7 @@ function RecurringEditor({ recurring, onChanged }: { recurring: RecurringTransac
           </div>
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>{r.description || r.category}</p>
-            <p style={{ fontSize: 12, color: 'var(--text-3)' }}>{r.category} · כל {r.dayOfMonth} לחודש · {r.member}</p>
+            <p style={{ fontSize: 12, color: 'var(--text-3)' }}>{r.category} · כל {r.dayOfMonth} לחודש</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: r.type === 'income' ? 'var(--green)' : 'var(--red)' }}>
