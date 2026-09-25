@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Transaction, SavingsGoal, BudgetSettings, RecurringTransaction } from '@/lib/types';
 import { loadAllData, getTransactions, getGoals, getBudget, getRecurring, applyRecurring } from '@/lib/storage';
-import { getMonthlyStats, getMemberSplit, getCategoryBreakdown, getLast6MonthsData, getTodayStats, getProjection } from '@/lib/analytics';
+import { getMonthlyStats, getCategoryBreakdown, getLast6MonthsData, getTodayStats, getProjection } from '@/lib/analytics';
 import AddTransactionModal from '@/components/AddTransactionModal';
 import TransactionList from '@/components/TransactionList';
 import SavingsGoals from '@/components/SavingsGoals';
@@ -68,7 +68,6 @@ export default function App() {
   });
 
   const { income, expenses, savings } = getMonthlyStats(transactions, now.getFullYear(), now.getMonth());
-  const split     = getMemberSplit(thisMonth);
   const pieData   = getCategoryBreakdown(thisMonth);
   const chartData = getLast6MonthsData(transactions);
   const today     = getTodayStats(transactions);
@@ -216,21 +215,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Member split */}
-          <div className="card" style={{ padding: 20 }}>
-            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 14 }}>הוצאות לפי בן/בת זוג</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-              {(['כפיר', 'אדר', 'משותף'] as const).map((m, i) => (
-                <div key={m} style={{ background: 'var(--bg)', borderRadius: 12, padding: '12px 10px', textAlign: 'center' }}>
-                  <p style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>{m}</p>
-                  <p style={{ fontSize: 16, fontWeight: 700, color: i === 0 ? 'var(--accent)' : i === 1 ? '#7C3AED' : 'var(--text-2)' }}>
-                    {(split[m] ?? 0).toLocaleString('he-IL')} ₪
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Recent transactions */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -312,28 +296,6 @@ export default function App() {
                 </div>
               )
             }
-          </div>
-
-          {/* Member stats */}
-          <div className="card" style={{ padding: 20 }}>
-            <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 14 }}>התפלגות לפי בן/בת זוג</p>
-            {(['כפיר', 'אדר', 'משותף'] as const).map((m, i) => {
-              const val   = split[m] ?? 0;
-              const total = (split.כפיר ?? 0) + (split.אדר ?? 0) + (split.משותף ?? 0);
-              const pct   = total > 0 ? Math.round((val / total) * 100) : 0;
-              const color = i === 0 ? 'var(--accent)' : i === 1 ? '#7C3AED' : 'var(--text-3)';
-              return (
-                <div key={m} style={{ marginBottom: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 500 }}>{m}</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color }}>{val.toLocaleString('he-IL')} ₪ ({pct}%)</span>
-                  </div>
-                  <div style={{ height: 6, background: 'var(--border)', borderRadius: 99, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 99 }} />
-                  </div>
-                </div>
-              );
-            })}
           </div>
 
           {/* Goals preview */}

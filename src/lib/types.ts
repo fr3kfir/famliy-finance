@@ -7,7 +7,6 @@ export interface Transaction {
   category: string;
   description: string;
   date: string;
-  member: 'כפיר' | 'אדר' | 'משותף';
 }
 
 export interface SavingsGoal {
@@ -28,13 +27,10 @@ export interface RecurringTransaction {
   amount: number;
   category: string;
   description: string;
-  member: 'כפיר' | 'אדר' | 'משותף';
   dayOfMonth: number; // 1–28
   active: boolean;
   lastApplied?: string; // "YYYY-MM" — last month it was auto-added
 }
-
-export const MEMBERS = ['משותף', 'כפיר', 'אדר'] as const;
 
 export const EXPENSE_CATEGORIES = [
   { name: 'מזון וסופר',  emoji: '🛒' },

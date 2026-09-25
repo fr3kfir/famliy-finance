@@ -13,8 +13,6 @@ interface Props {
   showSearch?: boolean;
 }
 
-const MEMBER_COLOR: Record<string, string> = { כפיר: '#4F46E5', אדר: '#7C3AED', משותף: '#9CA3AF' };
-
 function byDate(txs: Transaction[]) {
   const map: Record<string, Transaction[]> = {};
   [...txs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -36,8 +34,7 @@ export default function TransactionList({ transactions, onChanged, limit, showSe
     if (query) {
       const q = query.toLowerCase();
       if (!t.description?.toLowerCase().includes(q) &&
-          !t.category?.toLowerCase().includes(q) &&
-          !t.member?.toLowerCase().includes(q)) return false;
+          !t.category?.toLowerCase().includes(q)) return false;
     }
     return true;
   });
@@ -105,8 +102,6 @@ export default function TransactionList({ transactions, onChanged, limit, showSe
                     </p>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                       <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{tx.category}</span>
-                      <span style={{ fontSize: 8, color: 'var(--text-3)' }}>●</span>
-                      <span style={{ fontSize: 12, fontWeight: 500, color: MEMBER_COLOR[tx.member] ?? 'var(--text-3)' }}>{tx.member}</span>
                     </div>
                   </div>
 
