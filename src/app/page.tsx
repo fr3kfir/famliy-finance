@@ -9,10 +9,11 @@ import TransactionList from '@/components/TransactionList';
 import SavingsGoals from '@/components/SavingsGoals';
 import BudgetBars from '@/components/BudgetBars';
 import ManagePanel from '@/components/ManagePanel';
-import { Plus, Home, List, PieChart, Settings, RefreshCw } from 'lucide-react';
+import LoansPanel from '@/components/LoansPanel';
+import { Plus, Home, List, PieChart, Settings, RefreshCw, Landmark } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RePie, Pie, Cell, ReferenceLine } from 'recharts';
 
-type Tab = 'home' | 'transactions' | 'stats' | 'manage';
+type Tab = 'home' | 'transactions' | 'stats' | 'loans' | 'manage';
 
 const PIE_COLORS = ['#4F46E5', '#7C3AED', '#059669', '#D97706', '#DC2626', '#0891B2', '#BE185D', '#65A30D'];
 
@@ -83,6 +84,7 @@ export default function App() {
     { id: 'home'         as Tab, icon: Home,     label: 'בית' },
     { id: 'transactions' as Tab, icon: List,     label: 'עסקאות' },
     { id: 'stats'        as Tab, icon: PieChart, label: 'ניתוח' },
+    { id: 'loans'        as Tab, icon: Landmark, label: 'הלוואות' },
     { id: 'manage'       as Tab, icon: Settings, label: 'ניהול' },
   ];
 
@@ -360,6 +362,9 @@ export default function App() {
             }
           </div>
         </>}
+
+        {/* ══════════════════ LOANS ══════════════════ */}
+        {tab === 'loans' && <LoansPanel monthlyIncome={income} />}
 
         {/* ══════════════════ MANAGE ══════════════════ */}
         {tab === 'manage' && <>
